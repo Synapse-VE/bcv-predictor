@@ -19,7 +19,7 @@ import sys
 import time
 import urllib.request
 import threading
-from http.server import BaseHTTPRequestHandler, HTTPServer
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from datetime import date, datetime, timedelta, timezone
 from zoneinfo import ZoneInfo
 
@@ -1087,30 +1087,52 @@ def release_lock():
 
 
 def iniciar_servidor_falso():
-    """Mini servidor web para que Render no apague el bot por no tener puerto HTTP."""
+    """Health-check minimo para que Render mantenga el servicio web despierto."""
     class PingHandler(BaseHTTPRequestHandler):
-        def do_GET(self):
+        timeout = 10  # corta conexiones colgadas (slowloris)
+
+        def _responder(self, con_cuerpo=True):
             self.send_response(200)
+            self.send_header("Content-Type", "text/plain; charset=utf-8")
+            self.send_header("Cache-Control", "no-store")
             self.end_headers()
-            self.wfile.write(b"BCV Autopilot is Alive!")
+            if con_cuerpo:
+                self.wfile.write(b"BCV Autopilot is Alive!")
+
+        def do_GET(self):
+            if self.path in ("/", "/health", "/healthz"):
+                self._responder(True)
+            else:
+                self.send_response(404)
+                self.end_headers()
+
+        def do_HEAD(self):
+            if self.path in ("/", "/health", "/healthz"):
+                self._responder(False)
+            else:
+                self.send_response(404)
+                self.end_headers()
+
         def log_message(self, format, *args):
-            pass # Silenciar logs de pings para no llenar la consola
-            
+            pass  # silenciar pings
+
     puerto = int(os.environ.get("PORT", 8080))
     try:
-        server = HTTPServer(('0.0.0.0', puerto), PingHandler)
-        print(f"[Render] Servidor de ping escuchando en el puerto {puerto}")
+        server = ThreadingHTTPServer(("0.0.0.0", puerto), PingHandler)
+        server.daemon_threads = True
+        print(f"[Render] Health-check escuchando en el puerto {puerto}")
         server.serve_forever()
     except Exception as e:
-        print(f"Error iniciando servidor falso: {e}")
+        print(f"Error iniciando servidor de health-check: {e}")
 
 
 def cmd_run(args):
-    # Iniciar el servidor falso en un hilo separado para mantener Render despierto
-    threading.Thread(target=iniciar_servidor_falso, daemon=True).start()
-
     if not acquire_lock():
         return 1
+
+    # En Render (PORT definido) levantamos el health-check en un hilo aparte.
+    if os.environ.get("PORT"):
+        threading.Thread(target=iniciar_servidor_falso, daemon=True).start()
     stop = {"flag": False}
 
     def handler(signum, frame):  # noqa: ARG001
