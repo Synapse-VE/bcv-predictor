@@ -1,0 +1,21 @@
+# Secretos
+.env
+.env.*
+!.env.example
+config.js
+
+# Estado de ejecución
+state/
+*.log
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.pytest_cache/
+
+# Temporales / descargas
+raw/
+*.tmp
+.DS_Store

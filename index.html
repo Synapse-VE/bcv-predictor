@@ -1,0 +1,509 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BCV Terminal — Autopilot Forecast</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- FontAwesome para iconos -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        terminal: '#0b0e14',
+                        panel: '#131722',
+                        border: '#2a2e39',
+                        up: '#00ff88',
+                        down: '#ff3b30',
+                        textMuted: '#787b86'
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
+        .glass-panel {
+            background: rgba(19, 23, 34, 0.7);
+            backdrop-filter: blur(10px);
+            border: 1px solid #2a2e39;
+        }
+    </style>
+</head>
+<body class="bg-terminal text-white min-h-screen pb-12">
+
+    <!-- Navbar -->
+    <nav class="border-b border-border bg-panel/80 backdrop-blur sticky top-0 z-50">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex items-center justify-between h-16">
+                <div class="flex items-center gap-3">
+                    <div class="w-8 h-8 rounded-lg bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center">
+                        <i class="fa-solid fa-chart-line text-white"></i>
+                    </div>
+                    <span class="font-bold text-xl tracking-tight">BCV <span class="text-textMuted font-normal">Autopilot</span></span>
+                </div>
+                <div class="flex items-center gap-4">
+                    <div class="flex items-center gap-2 text-sm text-textMuted">
+                        <span class="relative flex h-3 w-3">
+                          <span id="status-ping" class="animate-ping absolute inline-flex h-full w-full rounded-full bg-up opacity-75"></span>
+                          <span id="status-dot" class="relative inline-flex rounded-full h-3 w-3 bg-up"></span>
+                        </span>
+                        <span id="status-label">Sistema Activo</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-8">
+
+        <!-- Configuracion de R2 (solo aparece si falta la URL) -->
+        <div id="config-bar" class="hidden mb-6 glass-panel p-4 rounded-xl">
+            <p class="text-sm text-textMuted mb-2">Configurá la URL pública de tu bucket R2 para cargar los datos:</p>
+            <div class="flex flex-col sm:flex-row gap-2">
+                <input id="config-url" type="url" placeholder="https://pub-xxxx.r2.dev"
+                       class="flex-1 bg-panel border border-border rounded px-3 py-2 text-sm text-white outline-none focus:border-blue-500">
+                <button id="config-save" class="bg-blue-600 hover:bg-blue-500 text-white text-sm font-medium px-4 py-2 rounded">
+                    Guardar
+                </button>
+            </div>
+            <p class="text-xs text-textMuted mt-2">Se guarda solo en este navegador. También podés usar <code>?r2=https://...</code> en la URL.</p>
+        </div>
+
+        <!-- Top Stats Row -->
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+            <!-- Tasa Actual -->
+            <div class="glass-panel p-5 rounded-xl col-span-1 md:col-span-2 relative overflow-hidden">
+                <div class="absolute top-0 right-0 p-4 opacity-10">
+                    <i class="fa-solid fa-building-columns text-6xl"></i>
+                </div>
+                <h2 class="text-textMuted text-sm font-semibold mb-1 uppercase tracking-wider">Tasa Oficial Hoy</h2>
+                <div class="flex items-baseline gap-3">
+                    <span class="text-5xl font-bold tracking-tight" id="current-rate">Cargando...</span>
+                    <span class="text-xl text-textMuted">Bs/USD</span>
+                </div>
+                <div class="text-xs text-textMuted mt-1 font-mono" id="current-rate-exact">--</div>
+                <div class="mt-2 flex items-center gap-2 text-sm">
+                    <span class="text-up font-medium bg-up/10 px-2 py-1 rounded" id="daily-change">
+                        <i class="fa-solid fa-arrow-trend-up mr-1"></i> Calculando...
+                    </span>
+                    <span class="text-textMuted">respecto a ayer</span>
+                    <span class="text-textMuted text-xs ml-auto" id="updated-at">--</span>
+                </div>
+            </div>
+
+            <!-- Pronóstico Mañana -->
+            <div class="glass-panel p-5 rounded-xl">
+                <h2 class="text-textMuted text-sm font-semibold mb-1 uppercase tracking-wider">Pronóstico Mañana</h2>
+                <div class="text-3xl font-bold" id="forecast-1d">--,--</div>
+                <div class="mt-2 text-sm text-textMuted flex items-center gap-1">
+                    <i class="fa-solid fa-crosshairs"></i> Rango 80%: <span class="text-white" id="range-1d">--,-- - --,--</span>
+                </div>
+            </div>
+
+            <!-- Pronóstico 21 Días -->
+            <div class="glass-panel p-5 rounded-xl">
+                <h2 class="text-textMuted text-sm font-semibold mb-1 uppercase tracking-wider">Pronóstico 21 Días</h2>
+                <div class="text-3xl font-bold" id="forecast-21d">--,--</div>
+                <div class="mt-2 text-sm text-textMuted flex items-center gap-1">
+                    <i class="fa-solid fa-calendar-days"></i> Aprox. en 1 mes
+                </div>
+            </div>
+        </div>
+
+        <!-- Main Chart -->
+        <div class="glass-panel p-5 rounded-xl mb-6">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="text-lg font-semibold">Histórico vs Pronóstico (USD/BCV)</h3>
+                <div class="flex gap-2 text-xs">
+                    <span class="bg-panel border border-border px-2 py-1 rounded">1M</span>
+                </div>
+            </div>
+            <div class="h-72 w-full">
+                <canvas id="bcvChart"></canvas>
+            </div>
+        </div>
+
+        <!-- Bottom Stats Grid -->
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+            
+            <!-- Pronósticos Oficiales -->
+            <div class="glass-panel p-5 rounded-xl md:col-span-2">
+                <h3 class="text-lg font-semibold mb-4 border-b border-border pb-2">Proyecciones Matemáticas</h3>
+                <div class="space-y-4">
+                    <!-- Día 1 -->
+                    <div class="flex items-center justify-between p-3 bg-panel rounded-lg border border-border">
+                        <div class="flex items-center gap-3">
+                            <div class="w-10 h-10 rounded-full bg-blue-500/20 flex items-center justify-center text-blue-400">
+                                <i class="fa-solid fa-1"></i>
+                            </div>
+                            <div>
+                                <p class="font-medium">Mañana</p>
+                                <p class="text-xs text-textMuted">Horizonte h=1</p>
+                            </div>
+                        </div>
+                        <div class="text-right">
+                            <p class="text-xl font-bold" id="proj-1d-val">--,-- Bs</p>
+                            <p class="text-xs text-up" id="proj-1d-pct"><i class="fa-solid fa-arrow-up"></i> --%</p>
+                        </div>
+                    </div>
+                    <!-- Día 5 -->
+                    <div class="flex items-center justify-between p-3 bg-panel rounded-lg border border-border">
+                        <div class="flex items-center gap-3">
+                            <div class="w-10 h-10 rounded-full bg-purple-500/20 flex items-center justify-center text-purple-400">
+                                <i class="fa-solid fa-5"></i>
+                            </div>
+                            <div>
+                                <p class="font-medium">Próxima Semana</p>
+                                <p class="text-xs text-textMuted">Horizonte h=5</p>
+                            </div>
+                        </div>
+                        <div class="text-right">
+                            <p class="text-xl font-bold" id="proj-5d-val">--,-- Bs</p>
+                            <p class="text-xs text-up" id="proj-5d-pct"><i class="fa-solid fa-arrow-up"></i> --%</p>
+                        </div>
+                    </div>
+                    <!-- Día 21 -->
+                    <div class="flex items-center justify-between p-3 bg-panel rounded-lg border border-border">
+                        <div class="flex items-center gap-3">
+                            <div class="w-10 h-10 rounded-full bg-orange-500/20 flex items-center justify-center text-orange-400">
+                                <i class="fa-solid fa-calendar"></i>
+                            </div>
+                            <div>
+                                <p class="font-medium">Próximo Mes</p>
+                                <p class="text-xs text-textMuted">Horizonte h=21</p>
+                            </div>
+                        </div>
+                        <div class="text-right">
+                            <p class="text-xl font-bold" id="proj-21d-val">--,-- Bs</p>
+                            <p class="text-xs text-up" id="proj-21d-pct"><i class="fa-solid fa-arrow-up"></i> --%</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Métricas de Acierto -->
+            <div class="glass-panel p-5 rounded-xl">
+                <h3 class="text-lg font-semibold mb-4 border-b border-border pb-2">Rendimiento del Modelo</h3>
+                
+                <div class="space-y-4">
+                    <div>
+                        <p class="text-sm text-textMuted mb-1">Precisión (MAPE)</p>
+                        <div class="flex justify-between items-end">
+                            <span class="text-2xl font-bold text-textMuted" id="metric-mape">—</span>
+                            <span class="text-xs text-textMuted mb-1">Margen de error</span>
+                        </div>
+                        <div class="w-full bg-border rounded-full h-1.5 mt-2">
+                            <div class="bg-up h-1.5 rounded-full" id="bar-mape" style="width: 0%"></div>
+                        </div>
+                    </div>
+
+                    <div>
+                        <p class="text-sm text-textMuted mb-1">Aciertos en Rango (80%)</p>
+                        <div class="flex justify-between items-end">
+                            <span class="text-2xl font-bold text-textMuted" id="metric-hit">—</span>
+                            <span class="text-xs text-textMuted mb-1" id="metrics-note">Se completa en la próxima publicación</span>
+                        </div>
+                        <div class="w-full bg-border rounded-full h-1.5 mt-2">
+                            <div class="bg-blue-500 h-1.5 rounded-full" id="bar-hit" style="width: 0%"></div>
+                        </div>
+                    </div>
+
+                    <div class="pt-2">
+                        <p class="text-sm text-textMuted mb-1">Mejor Modelo Actual</p>
+                        <div class="flex items-center gap-2 bg-panel p-2 rounded border border-border mt-1">
+                            <i class="fa-solid fa-brain text-purple-400"></i>
+                            <span class="font-mono text-sm" id="best-model-name">Calculando...</span>
+                            <span class="ml-auto text-xs bg-purple-500/20 text-purple-300 px-2 py-1 rounded" id="best-model-weight">--%</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </main>
+
+    <script src="config.js"></script>
+    <script>
+      // La URL de R2 no se versiona:
+      //   config.js (generado desde .env) -> ?r2=... -> localStorage
+      const LS_KEY = "bcv_r2_base";
+      const REFRESH_MS = 60000;
+      let chart = null;
+
+      const fmt1 = (n) => Number(n).toFixed(1).replace(".", ",");
+      const fmt2 = (n) => Number(n).toFixed(2).replace(".", ",");
+      const fmt6 = (n) => Number(n).toFixed(6).replace(".", ",");
+      const normalizar = (u) => (u || "").trim().replace(/\/+$/, "");
+
+      function baseUrl() {
+        const desdeConfig = normalizar(window.BCV_CONFIG && window.BCV_CONFIG.R2_BASE_URL);
+        if (desdeConfig) return desdeConfig;
+
+        const params = new URLSearchParams(location.search);
+        const desdeQuery = normalizar(params.get("r2"));
+        if (desdeQuery) {
+          try { localStorage.setItem(LS_KEY, desdeQuery); } catch (e) {}
+          try { history.replaceState({}, "", location.pathname); } catch (e) {}
+          return desdeQuery;
+        }
+        try { return normalizar(localStorage.getItem(LS_KEY)); } catch (e) { return ""; }
+      }
+
+      function mostrarConfig(mostrar) {
+        document.getElementById("config-bar").classList.toggle("hidden", !mostrar);
+      }
+
+      function setStatus(kind, label) {
+        const colores = { ok: "bg-up", warn: "bg-yellow-400", bad: "bg-down" };
+        ["status-dot", "status-ping"].forEach((id) => {
+          const el = document.getElementById(id);
+          el.classList.remove("bg-up", "bg-yellow-400", "bg-down");
+          el.classList.add(colores[kind] || "bg-up");
+        });
+        document.getElementById("status-ping").style.display = kind === "ok" ? "" : "none";
+        document.getElementById("status-label").innerText = label;
+      }
+
+      async function loadData() {
+        const base = baseUrl();
+        if (!base) {
+          mostrarConfig(true);
+          setStatus("warn", "Sin configurar");
+          document.getElementById("current-rate").innerText = "Configurá R2";
+          return;
+        }
+        mostrarConfig(false);
+
+        try {
+          const bust = `?t=${Date.now()}`;
+          const [forecastRes, csvRes] = await Promise.all([
+            fetch(`${base}/forecast.json${bust}`, { cache: "no-store" }),
+            fetch(`${base}/series.csv${bust}`, { cache: "no-store" }).catch(() => null),
+          ]);
+          if (!forecastRes.ok) throw new Error(`forecast.json ${forecastRes.status}`);
+          const data = await forecastRes.json();
+
+          // ---- histórico (últimos 30 días hábiles) ----
+          const labels = [];
+          const historical = [];
+          if (csvRes && csvRes.ok) {
+            const txt = await csvRes.text();
+            const lines = txt.trim().split("\n").slice(1).slice(-30);
+            for (const line of lines) {
+              const cols = line.split(",");
+              const valor = parseFloat(cols[1]);
+              if (cols[0] && !isNaN(valor)) {
+                labels.push(cols[0]);
+                historical.push(valor);
+              }
+            }
+          }
+
+          const current = Number(data.last.usd);
+          const official = data.official || {};
+          const path = data.path || [];
+
+          // ---- tarjeta principal ----
+          const rateEl = document.getElementById("current-rate");
+          rateEl.innerText = fmt2(current);
+          rateEl.className = "text-5xl font-bold tracking-tight";
+          document.getElementById("current-rate-exact").innerText = `Exacto: ${fmt6(current)} Bs`;
+
+          if (historical.length >= 2) {
+            const prev = historical[historical.length - 2];
+            const pct = ((current - prev) / prev) * 100;
+            const el = document.getElementById("daily-change");
+            el.innerHTML = `<i class="fa-solid fa-arrow-${pct >= 0 ? "trend-up" : "trend-down"} mr-1"></i> ${pct >= 0 ? "+" : ""}${fmt2(pct)}%`;
+            el.className = `font-medium px-2 py-1 rounded ${pct >= 0 ? "text-up bg-up/10" : "text-down bg-down/10"}`;
+          }
+
+          // ---- frescura: latido del proceso vs fecha del ultimo dato ----
+          const generado = new Date(data.generated);
+          const edadProceso = isNaN(generado.getTime())
+            ? 0
+            : (Date.now() - generado.getTime()) / 60000;
+
+          const fechaDato = new Date(`${data.last.date}T00:00:00`);
+          const diasDato = isNaN(fechaDato.getTime())
+            ? 0
+            : Math.floor((Date.now() - fechaDato.getTime()) / 86400000);
+
+          const marca = data.data_updated ? new Date(data.data_updated) : null;
+          const fechaLegible = data.last.date.split("-").reverse().join("/");
+          document.getElementById("updated-at").innerText =
+            marca && !isNaN(marca.getTime())
+              ? `Datos: ${marca.toLocaleString("es-VE", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })}`
+              : `Datos del ${fechaLegible}`;
+
+          const health = data.health || {};
+          const errores = Number(health.consecutive_errors || 0);
+          if (errores >= 2) setStatus("bad", "Sin conexión con BCV");
+          else if (errores === 1) setStatus("warn", "Reintentando BCV");
+          else if (edadProceso > 180) setStatus("bad", "Proceso detenido");
+          else if (diasDato > 7) setStatus("bad", `Sin datos hace ${diasDato} días`);
+          else if (diasDato > 4) setStatus("warn", `Último dato: ${fechaLegible}`);
+          else setStatus("ok", "Sistema Activo");
+
+          // ---- tarjetas chicas ----
+          if (official["1"]) {
+            document.getElementById("forecast-1d").innerText = fmt2(official["1"].pred);
+            document.getElementById("range-1d").innerText =
+              `${fmt1(official["1"].lo80)} – ${fmt1(official["1"].hi80)}`;
+          }
+          if (official["21"]) {
+            document.getElementById("forecast-21d").innerText = fmt2(official["21"].pred);
+          }
+
+          // ---- proyecciones ----
+          [1, 5, 21].forEach((h) => {
+            const p = official[String(h)];
+            const valEl = document.getElementById(`proj-${h}d-val`);
+            const pctEl = document.getElementById(`proj-${h}d-pct`);
+            if (!p || !valEl || !pctEl) return;
+            valEl.innerText = `${fmt2(p.pred)} Bs`;
+            const pct = ((p.pred - current) / current) * 100;
+            pctEl.innerHTML = `<i class="fa-solid fa-arrow-${pct >= 0 ? "up" : "down"}"></i> ${pct >= 0 ? "+" : ""}${fmt2(pct)}%`;
+            pctEl.className = `text-xs ${pct >= 0 ? "text-up" : "text-down"}`;
+          });
+
+          // ---- métricas (vienen dentro de forecast.json) ----
+          const m1 = data.metrics && data.metrics["1"];
+          const mapeEl = document.getElementById("metric-mape");
+          const hitEl = document.getElementById("metric-hit");
+          const noteEl = document.getElementById("metrics-note");
+          if (m1 && m1.n) {
+            mapeEl.innerText = `${fmt2(m1.mape_pct)}%`;
+            mapeEl.className = "text-2xl font-bold text-up";
+            document.getElementById("bar-mape").style.width =
+              `${Math.max(5, Math.min(100, 100 - m1.mape_pct * 10))}%`;
+            hitEl.innerText = `${fmt1(m1.hit80_pct)}%`;
+            hitEl.className = "text-2xl font-bold text-blue-400";
+            document.getElementById("bar-hit").style.width = `${m1.hit80_pct}%`;
+            noteEl.innerText = `Últimos ${m1.n} pronósticos`;
+          } else {
+            mapeEl.innerText = "—";
+            hitEl.innerText = "—";
+            mapeEl.className = "text-2xl font-bold text-textMuted";
+            hitEl.className = "text-2xl font-bold text-textMuted";
+            noteEl.innerText = "Se completa en la próxima publicación";
+          }
+
+          // ---- mejor modelo ----
+          if (data.weights) {
+            let best = "";
+            let max = -1;
+            for (const [model, weight] of Object.entries(data.weights)) {
+              if (weight > max) { max = weight; best = model; }
+            }
+            document.getElementById("best-model-name").innerText = best;
+            document.getElementById("best-model-weight").innerText = `Peso ${Math.round(max * 100)}%`;
+          }
+
+          // ---- gráfico ----
+          const futureLabels = path.map((d) => d.date);
+          const futureData = path.map((d) => d.pred);
+          const allLabels = [...labels, ...futureLabels];
+
+          let histData;
+          let foreData;
+          if (historical.length > 0) {
+            histData = [...historical, ...new Array(futureData.length).fill(null)];
+            foreData = [...new Array(historical.length - 1).fill(null), current, ...futureData];
+          } else {
+            histData = new Array(futureData.length).fill(null);
+            foreData = [...futureData];
+          }
+
+          if (chart) {
+            chart.data.labels = allLabels;
+            chart.data.datasets[0].data = histData;
+            chart.data.datasets[1].data = foreData;
+            chart.update("none");
+          } else {
+            const ctx = document.getElementById("bcvChart").getContext("2d");
+            const gradient = ctx.createLinearGradient(0, 0, 0, 400);
+            gradient.addColorStop(0, "rgba(0, 255, 136, 0.2)");
+            gradient.addColorStop(1, "rgba(0, 255, 136, 0)");
+            chart = new Chart(ctx, {
+              type: "line",
+              data: {
+                labels: allLabels,
+                datasets: [
+                  {
+                    label: "Histórico Real",
+                    data: histData,
+                    borderColor: "#00ff88",
+                    backgroundColor: gradient,
+                    borderWidth: 2,
+                    pointRadius: 0,
+                    fill: true,
+                    tension: 0.1,
+                  },
+                  {
+                    label: "Pronóstico",
+                    data: foreData,
+                    borderColor: "#a855f7",
+                    borderWidth: 2,
+                    borderDash: [5, 5],
+                    pointRadius: 0,
+                    fill: false,
+                    tension: 0.1,
+                  },
+                ],
+              },
+              options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                interaction: { mode: "index", intersect: false },
+                plugins: {
+                  legend: { display: true, labels: { color: "#787b86" } },
+                  tooltip: {
+                    backgroundColor: "#131722",
+                    titleColor: "#fff",
+                    bodyColor: "#00ff88",
+                    borderColor: "#2a2e39",
+                    borderWidth: 1,
+                    padding: 10,
+                    callbacks: {
+                      label: (c) => (c.parsed.y === null ? null : `${c.dataset.label}: ${fmt2(c.parsed.y)} Bs`),
+                    },
+                  },
+                },
+                scales: {
+                  x: { grid: { display: false }, ticks: { color: "#787b86", maxTicksLimit: 10 } },
+                  y: { grid: { color: "#2a2e39" }, ticks: { color: "#787b86" } },
+                },
+              },
+            });
+          }
+        } catch (err) {
+          console.error("Error cargando datos:", err);
+          setStatus("bad", "Sin conexión");
+          const el = document.getElementById("current-rate");
+          if (el.innerText === "Cargando...") {
+            el.innerText = "Error R2";
+            el.className = "text-5xl font-bold tracking-tight text-down";
+          }
+        }
+      }
+
+      document.addEventListener("DOMContentLoaded", () => {
+        document.getElementById("config-save").addEventListener("click", () => {
+          const url = normalizar(document.getElementById("config-url").value);
+          if (!url) return;
+          try { localStorage.setItem(LS_KEY, url); } catch (e) {}
+          loadData();
+        });
+        loadData();
+        setInterval(loadData, REFRESH_MS);
+      });
+    </script>
+</body>
+</html>

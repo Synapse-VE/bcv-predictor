@@ -1,0 +1,31 @@
+# Dias no habiles bancarios en Venezuela (adicionales a sabados y domingos)
+# Fuente: calendario bancario oficial del BCV 2026
+# https://www.bcv.org.ve/bcv/calendario-bancario
+# Formato: YYYY-MM-DD  (una fecha por linea, # comenta)
+#
+# Nota: actualizar cada ano con el calendario nuevo del BCV.
+
+2026-01-01   # Ano Nuevo
+2026-02-16   # Carnaval
+2026-02-17   # Carnaval
+2026-04-02   # Semana Santa
+2026-04-03   # Semana Santa
+2026-05-01   # Dia del Trabajador
+2026-06-08   # Feriado nacional
+2026-06-15   # Feriado nacional
+2026-06-24   # Batalla de Carabobo
+2026-06-29   # San Pedro y San Pablo
+2026-07-05   # Independencia
+2026-07-24   # Natalicio de Bolivar
+2026-08-17   # Feriado bancario
+2026-09-14   # Feriado nacional
+2026-10-12   # Dia de la Resistencia Indigena
+2026-10-26   # Feriado nacional
+2026-11-23   # Feriado nacional
+2026-11-24   # Feriado bancario
+2026-11-25   # Feriado nacional
+2026-11-30   # Feriado nacional
+2026-12-14   # Feriado bancario
+2026-12-24   # Nochebuena
+2026-12-25   # Navidad
+2026-12-31   # Fin de ano
