@@ -18,6 +18,8 @@ import subprocess
 import sys
 import time
 import urllib.request
+import threading
+from http.server import BaseHTTPRequestHandler, HTTPServer
 from datetime import date, datetime, timedelta, timezone
 from zoneinfo import ZoneInfo
 
@@ -311,7 +313,7 @@ def append_event(msg: str):
 
 
 def fmt(x, dec=4):
-    """Formato venezolano: 1.234,5678"""
+    """Formato: 1.234,5678"""
     if x is None:
         return "-"
     s = f"{x:,.{dec}f}"
@@ -1084,7 +1086,29 @@ def release_lock():
         pass
 
 
+def iniciar_servidor_falso():
+    """Mini servidor web para que Render no apague el bot por no tener puerto HTTP."""
+    class PingHandler(BaseHTTPRequestHandler):
+        def do_GET(self):
+            self.send_response(200)
+            self.end_headers()
+            self.wfile.write(b"BCV Autopilot is Alive!")
+        def log_message(self, format, *args):
+            pass # Silenciar logs de pings para no llenar la consola
+            
+    puerto = int(os.environ.get("PORT", 8080))
+    try:
+        server = HTTPServer(('0.0.0.0', puerto), PingHandler)
+        print(f"[Render] Servidor de ping escuchando en el puerto {puerto}")
+        server.serve_forever()
+    except Exception as e:
+        print(f"Error iniciando servidor falso: {e}")
+
+
 def cmd_run(args):
+    # Iniciar el servidor falso en un hilo separado para mantener Render despierto
+    threading.Thread(target=iniciar_servidor_falso, daemon=True).start()
+
     if not acquire_lock():
         return 1
     stop = {"flag": False}
