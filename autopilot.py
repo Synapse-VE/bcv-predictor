@@ -850,9 +850,36 @@ def compute_regime(values: list[float]) -> dict:
 # ----------------------------------------------------------------------------
 # Ciclo principal
 # ----------------------------------------------------------------------------
-def write_forecast_file(state: dict, rows: list[dict], hol: set[date]):
+def _pct_change(actual: float, prev: float | None) -> float | None:
+    if prev in (None, 0):
+        return None
+    return (actual / prev - 1.0) * 100.0
+
+
+def tasa_vigente_y_proxima(rows: list[dict], today: date, hol: set[date] | None = None):
+    """Separa la tasa vigente hoy (ultima FV <= hoy) de la proxima (FV > hoy).
+
+    La web del BCV publica la ultima tasa conocida, que puede tener Fecha Valor
+    futura (un viernes por la tarde publica la del lunes o martes). Para el
+    usuario, "tasa de hoy" es la ultima cuya Fecha Valor ya entro en vigencia.
+    """
+    vigente = None
+    proxima = None
+    for r in rows:
+        if r["date"] <= today:
+            vigente = r
+        elif proxima is None:
+            proxima = r
+    if vigente is None and rows:
+        vigente = rows[0]
+    return vigente, proxima
+
+
+def build_forecast_payload(state: dict, rows: list[dict], hol: set[date], today: date | None = None):
+    """Construye el JSON del pronostico separando tasa vigente y proxima."""
     if not rows:
-        return
+        return None
+    today = today or now_local().date()
     last = rows[-1]
     values = [r["usd"] for r in rows]
     r = log_returns(values)
@@ -876,9 +903,36 @@ def write_forecast_file(state: dict, rows: list[dict], hol: set[date]):
             c: p["pred"] * ratios[c] for c in ("EUR", "CNY", "TRY", "RUB") if c in ratios
         }
 
+    vigente, proxima = tasa_vigente_y_proxima(rows, today, hol)
+    vigente_prev = None
+    if vigente:
+        idx = next((i for i, x in enumerate(rows) if x["date"] == vigente["date"]), -1)
+        if idx > 0:
+            vigente_prev = rows[idx - 1]
+
+    vigente_payload = None
+    if vigente:
+        vigente_payload = {
+            "date": vigente["date"].isoformat(),
+            "usd": vigente["usd"],
+            "change_pct": _pct_change(vigente["usd"], vigente_prev["usd"] if vigente_prev else None),
+            "prev_date": vigente_prev["date"].isoformat() if vigente_prev else None,
+        }
+
+    proxima_payload = None
+    if proxima:
+        proxima_payload = {
+            "date": proxima["date"].isoformat(),
+            "usd": proxima["usd"],
+            "change_pct": _pct_change(proxima["usd"], vigente["usd"] if vigente else None),
+        }
+
     forecast = {
         "generated": now_local().isoformat(timespec="seconds"),
         "data_updated": state.get("last_data_at"),
+        "today": today.isoformat(),
+        "vigente": vigente_payload,
+        "proxima": proxima_payload,
         "last": {"date": last["date"].isoformat(), "usd": last["usd"]},
         "next_target": add_bd(last["date"], 1, hol).isoformat(),
         "official": official,
@@ -894,6 +948,13 @@ def write_forecast_file(state: dict, rows: list[dict], hol: set[date]):
             "last_error": state.get("last_error"),
         },
     }
+    return forecast
+
+
+def write_forecast_file(state: dict, rows: list[dict], hol: set[date]):
+    forecast = build_forecast_payload(state, rows, hol)
+    if forecast is None:
+        return None
     save_json(FORECAST_JSON, forecast)
     return forecast
 
@@ -1189,7 +1250,12 @@ def cmd_status(args):
         return 1
 
     last = rows[-1]
-    print(f"Última tasa     : {fmt(last['usd'], 8)} Bs/USD   (Fecha Valor {last['date']:%d/%m/%Y})")
+    today = now_local().date()
+    vigente, proxima = tasa_vigente_y_proxima(rows, today, hol)
+    print(f"Vigente hoy     : {fmt(vigente['usd'], 8)} Bs/USD   (Fecha Valor {vigente['date']:%d/%m/%Y})")
+    if proxima:
+        print(f"Próxima a regir : {fmt(proxima['usd'], 8)} Bs/USD   (Fecha Valor {proxima['date']:%d/%m/%Y})")
+    print(f"Última publicada: {fmt(last['usd'], 8)} Bs/USD   (Fecha Valor {last['date']:%d/%m/%Y})")
     print(f"Último sondeo   : {state.get('last_poll') or '-'}")
     print(f"Próximo objetivo: {state.get('next_target') or '-'}")
     pub = state.get("pub_times", [])[-10:]
@@ -1206,9 +1272,9 @@ def cmd_status(args):
             p = forecast.get("official", {}).get(str(h))
             if not p:
                 continue
-            etiqueta = "día " if h == 1 else "días"
+            nombre = {1: "próxima publicación", 5: "5 días hábiles", 21: "21 días hábiles"}[h]
             print(
-                f"  +{h:>2} {etiqueta} ({p['date']}): {fmt(p['pred'], 6)}  ->  {fmt(p['pred'], 2)}"
+                f"  {nombre:<20} ({p['date']}): {fmt(p['pred'], 6)}  ->  {fmt(p['pred'], 2)}"
                 f"   [50%: {fmt(p['lo50'], 2)}–{fmt(p['hi50'], 2)} | 80%: {fmt(p['lo80'], 2)}–{fmt(p['hi80'], 2)}]"
             )
         print()

@@ -77,13 +77,13 @@
         </div>
 
         <!-- Top Stats Row -->
-        <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-            <!-- Tasa Actual -->
-            <div class="glass-panel p-5 rounded-xl col-span-1 md:col-span-2 relative overflow-hidden">
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 mb-6">
+            <!-- Tasa vigente hoy -->
+            <div class="glass-panel p-5 rounded-xl md:col-span-2 relative overflow-hidden">
                 <div class="absolute top-0 right-0 p-4 opacity-10">
                     <i class="fa-solid fa-building-columns text-6xl"></i>
                 </div>
-                <h2 class="text-textMuted text-sm font-semibold mb-1 uppercase tracking-wider">Tasa Oficial Hoy</h2>
+                <h2 class="text-textMuted text-sm font-semibold mb-1 uppercase tracking-wider">Tasa Oficial Vigente</h2>
                 <div class="flex items-baseline gap-3">
                     <span class="text-5xl font-bold tracking-tight" id="current-rate">Cargando...</span>
                     <span class="text-xl text-textMuted">Bs/USD</span>
@@ -93,27 +93,41 @@
                     <span class="text-up font-medium bg-up/10 px-2 py-1 rounded" id="daily-change">
                         <i class="fa-solid fa-arrow-trend-up mr-1"></i> Calculando...
                     </span>
-                    <span class="text-textMuted">respecto a ayer</span>
-                    <span class="text-textMuted text-xs ml-auto" id="updated-at">--</span>
+                    <span class="text-textMuted" id="daily-change-label">vs. tasa anterior</span>
                 </div>
+                <div class="text-xs text-textMuted mt-1" id="vigente-fv">--</div>
             </div>
 
-            <!-- Pronóstico Mañana -->
+            <!-- Próxima tasa (publicada, rige en el futuro) -->
             <div class="glass-panel p-5 rounded-xl">
-                <h2 class="text-textMuted text-sm font-semibold mb-1 uppercase tracking-wider">Pronóstico Mañana</h2>
-                <div class="text-3xl font-bold" id="forecast-1d">--,--</div>
+                <h2 class="text-textMuted text-sm font-semibold mb-1 uppercase tracking-wider">Próxima Tasa</h2>
+                <div class="text-3xl font-bold" id="proxima-rate">--,--</div>
+                <div class="text-xs text-textMuted mt-1 font-mono" id="proxima-exact">--</div>
                 <div class="mt-2 text-sm text-textMuted flex items-center gap-1">
+                    <i class="fa-solid fa-calendar-check"></i> Rige: <span class="text-white" id="proxima-fv">--</span>
+                </div>
+                <div class="text-xs text-textMuted mt-1" id="proxima-change">--</div>
+                <div class="text-xs text-textMuted mt-1" id="updated-at">--</div>
+            </div>
+
+            <!-- Pronóstico de la próxima publicación -->
+            <div class="glass-panel p-5 rounded-xl">
+                <h2 class="text-textMuted text-sm font-semibold mb-1 uppercase tracking-wider">Pronóstico</h2>
+                <div class="text-3xl font-bold" id="forecast-1d">--,--</div>
+                <div class="mt-2 text-xs text-textMuted flex items-center gap-1 flex-wrap">
                     <i class="fa-solid fa-crosshairs"></i> Rango 80%: <span class="text-white" id="range-1d">--,-- - --,--</span>
                 </div>
+                <div class="text-xs text-textMuted mt-1" id="forecast-1d-date">--</div>
             </div>
 
-            <!-- Pronóstico 21 Días -->
+            <!-- Proyección 21 días -->
             <div class="glass-panel p-5 rounded-xl">
-                <h2 class="text-textMuted text-sm font-semibold mb-1 uppercase tracking-wider">Pronóstico 21 Días</h2>
+                <h2 class="text-textMuted text-sm font-semibold mb-1 uppercase tracking-wider">Proyección 21 Días</h2>
                 <div class="text-3xl font-bold" id="forecast-21d">--,--</div>
-                <div class="mt-2 text-sm text-textMuted flex items-center gap-1">
-                    <i class="fa-solid fa-calendar-days"></i> Aprox. en 1 mes
+                <div class="mt-2 text-xs text-textMuted flex items-center gap-1 flex-wrap">
+                    <i class="fa-solid fa-calendar-days"></i> Rango 80%: <span class="text-white" id="range-21d">--,-- - --,--</span>
                 </div>
+                <div class="text-xs text-textMuted mt-1" id="forecast-21d-date">--</div>
             </div>
         </div>
 
@@ -144,8 +158,8 @@
                                 <i class="fa-solid fa-1"></i>
                             </div>
                             <div>
-                                <p class="font-medium">Mañana</p>
-                                <p class="text-xs text-textMuted">Horizonte h=1</p>
+                                <p class="font-medium">Próxima publicación</p>
+                                <p class="text-xs text-textMuted">h=1 · <span id="proj-1d-date">--</span></p>
                             </div>
                         </div>
                         <div class="text-right">
@@ -160,8 +174,8 @@
                                 <i class="fa-solid fa-5"></i>
                             </div>
                             <div>
-                                <p class="font-medium">Próxima Semana</p>
-                                <p class="text-xs text-textMuted">Horizonte h=5</p>
+                                <p class="font-medium">En 5 días hábiles</p>
+                                <p class="text-xs text-textMuted">h=5 · <span id="proj-5d-date">--</span></p>
                             </div>
                         </div>
                         <div class="text-right">
@@ -176,8 +190,8 @@
                                 <i class="fa-solid fa-calendar"></i>
                             </div>
                             <div>
-                                <p class="font-medium">Próximo Mes</p>
-                                <p class="text-xs text-textMuted">Horizonte h=21</p>
+                                <p class="font-medium">En 21 días hábiles</p>
+                                <p class="text-xs text-textMuted">h=21 · <span id="proj-21d-date">--</span></p>
                             </div>
                         </div>
                         <div class="text-right">
@@ -306,22 +320,54 @@
             }
           }
 
-          const current = Number(data.last.usd);
+          const current = Number(data.last.usd); // última publicada (base del pronóstico)
           const official = data.official || {};
           const path = data.path || [];
+          const vigente = data.vigente || null;
+          const proxima = data.proxima || null;
 
-          // ---- tarjeta principal ----
+          const DIAS = ["domingo", "lunes", "martes", "miércoles", "jueves", "viernes", "sábado"];
+          const fechaLarga = (iso) => {
+            if (!iso) return "--";
+            const [y, m, d] = iso.split("-").map(Number);
+            const dt = new Date(y, m - 1, d);
+            return `${DIAS[dt.getDay()]} ${String(d).padStart(2, "0")}/${String(m).padStart(2, "0")}/${y}`;
+          };
+          const fechaCorta = (iso) => (iso ? iso.split("-").reverse().join("/") : "--");
+
+          // ---- tarjeta principal: tasa vigente hoy ----
           const rateEl = document.getElementById("current-rate");
-          rateEl.innerText = fmt2(current);
-          rateEl.className = "text-5xl font-bold tracking-tight";
-          document.getElementById("current-rate-exact").innerText = `Exacto: ${fmt6(current)} Bs`;
+          if (vigente) {
+            rateEl.innerText = fmt2(vigente.usd);
+            rateEl.className = "text-5xl font-bold tracking-tight";
+            document.getElementById("current-rate-exact").innerText = `Exacto: ${fmt6(vigente.usd)} Bs`;
+            document.getElementById("vigente-fv").innerText = `Fecha Valor: ${fechaLarga(vigente.date)}`;
+            if (vigente.change_pct !== null && vigente.change_pct !== undefined) {
+              const pct = vigente.change_pct;
+              const el = document.getElementById("daily-change");
+              el.innerHTML = `<i class="fa-solid fa-arrow-${pct >= 0 ? "trend-up" : "trend-down"} mr-1"></i> ${pct >= 0 ? "+" : ""}${fmt2(pct)}%`;
+              el.className = `font-medium px-2 py-1 rounded ${pct >= 0 ? "text-up bg-up/10" : "text-down bg-down/10"}`;
+              document.getElementById("daily-change-label").innerText =
+                `vs. tasa anterior (${fechaCorta(vigente.prev_date)})`;
+            }
+          } else {
+            rateEl.innerText = "—";
+          }
 
-          if (historical.length >= 2) {
-            const prev = historical[historical.length - 2];
-            const pct = ((current - prev) / prev) * 100;
-            const el = document.getElementById("daily-change");
-            el.innerHTML = `<i class="fa-solid fa-arrow-${pct >= 0 ? "trend-up" : "trend-down"} mr-1"></i> ${pct >= 0 ? "+" : ""}${fmt2(pct)}%`;
-            el.className = `font-medium px-2 py-1 rounded ${pct >= 0 ? "text-up bg-up/10" : "text-down bg-down/10"}`;
+          // ---- próxima tasa (ya publicada, todavía no vigente) ----
+          if (proxima) {
+            document.getElementById("proxima-rate").innerText = fmt2(proxima.usd);
+            document.getElementById("proxima-exact").innerText = `Exacto: ${fmt6(proxima.usd)} Bs`;
+            document.getElementById("proxima-fv").innerText = fechaLarga(proxima.date);
+            if (proxima.change_pct !== null && proxima.change_pct !== undefined) {
+              const p = proxima.change_pct;
+              document.getElementById("proxima-change").innerText =
+                `${p >= 0 ? "+" : ""}${fmt2(p)}% vs. vigente`;
+            }
+          } else {
+            document.getElementById("proxima-rate").innerText = "—";
+            document.getElementById("proxima-fv").innerText = "aún no publicada";
+            document.getElementById("proxima-change").innerText = "Se publica en la tarde";
           }
 
           // ---- frescura: latido del proceso vs fecha del ultimo dato ----
@@ -339,8 +385,8 @@
           const fechaLegible = data.last.date.split("-").reverse().join("/");
           document.getElementById("updated-at").innerText =
             marca && !isNaN(marca.getTime())
-              ? `Datos: ${marca.toLocaleString("es-VE", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })}`
-              : `Datos del ${fechaLegible}`;
+              ? `Publicada: ${marca.toLocaleString("es-VE", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit", hour12: false })}`
+              : `Publicada: ${fechaLegible}`;
 
           const health = data.health || {};
           const errores = Number(health.consecutive_errors || 0);
@@ -356,9 +402,15 @@
             document.getElementById("forecast-1d").innerText = fmt2(official["1"].pred);
             document.getElementById("range-1d").innerText =
               `${fmt1(official["1"].lo80)} – ${fmt1(official["1"].hi80)}`;
+            document.getElementById("forecast-1d-date").innerText =
+              `Para el ${fechaLarga(official["1"].date)}`;
           }
           if (official["21"]) {
             document.getElementById("forecast-21d").innerText = fmt2(official["21"].pred);
+            document.getElementById("range-21d").innerText =
+              `${fmt1(official["21"].lo80)} – ${fmt1(official["21"].hi80)}`;
+            document.getElementById("forecast-21d-date").innerText =
+              `Para el ${fechaLarga(official["21"].date)}`;
           }
 
           // ---- proyecciones ----
@@ -368,6 +420,8 @@
             const pctEl = document.getElementById(`proj-${h}d-pct`);
             if (!p || !valEl || !pctEl) return;
             valEl.innerText = `${fmt2(p.pred)} Bs`;
+            const dateEl = document.getElementById(`proj-${h}d-date`);
+            if (dateEl) dateEl.innerText = fechaCorta(p.date);
             const pct = ((p.pred - current) / current) * 100;
             pctEl.innerHTML = `<i class="fa-solid fa-arrow-${pct >= 0 ? "up" : "down"}"></i> ${pct >= 0 ? "+" : ""}${fmt2(pct)}%`;
             pctEl.className = `text-xs ${pct >= 0 ? "text-up" : "text-down"}`;
@@ -386,7 +440,7 @@
             hitEl.innerText = `${fmt1(m1.hit80_pct)}%`;
             hitEl.className = "text-2xl font-bold text-blue-400";
             document.getElementById("bar-hit").style.width = `${m1.hit80_pct}%`;
-            noteEl.innerText = `Últimos ${m1.n} pronósticos`;
+            noteEl.innerText = m1.n === 1 ? "Último pronóstico" : `Últimos ${m1.n} pronósticos`;
           } else {
             mapeEl.innerText = "—";
             hitEl.innerText = "—";

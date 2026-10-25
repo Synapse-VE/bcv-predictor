@@ -102,6 +102,16 @@ Acierta mejor que “no cambiar nada” en el **85 %** de los días.
 
 ---
 
+## Tests
+
+```bash
+python -m unittest discover -s tests -v
+```
+
+La suite corre en GitHub Actions (`.github/workflows/tests.yml`). Cubre la
+separación entre tasa vigente y próxima, el salto de feriados y las fechas
+objetivo del pronóstico.
+
 ## Fuentes de datos
 
 | Fuente | Uso |
@@ -118,7 +128,8 @@ Acierta mejor que “no cambiar nada” en el **85 %** de los días.
 ## Dashboard
 
 `index.html` es un dashboard estático (Tailwind + Chart.js) que lee `forecast.json`
-y `series.csv`. Muestra tasa actual, pronósticos 1d/5d/21d, bandas, cruces, pesos del
+y `series.csv`. Muestra la **tasa vigente hoy**, la **próxima tasa** (con su Fecha
+Valor), los pronósticos 1d/5d/21d con su fecha objetivo, bandas, cruces, pesos del
 modelo y métricas de acierto.
 
 ### URL de R2 sin publicarla en el repo

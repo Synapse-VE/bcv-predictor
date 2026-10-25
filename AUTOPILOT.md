@@ -70,6 +70,17 @@ consulta la portada del BCV (cada 3 min de 13:00 a 21:00; cada 30 min el resto)
 
 ---
 
+## Tasa vigente vs. próxima
+
+La web del BCV publica la última tasa conocida, que puede tener Fecha Valor futura
+(un viernes por la tarde publica la del lunes o martes). `forecast.json` expone:
+
+- `vigente`: última Fecha Valor <= hoy (la que rige hoy).
+- `proxima`: primera Fecha Valor > hoy (la que regirá).
+- `official`: pronóstico de la próxima publicación, con su fecha real.
+
+El dashboard usa esos campos para no mostrar como "hoy" una tasa que todavía no rige.
+
 ## Cómo se auto-corrige
 
 1. **Pool de 7 modelos**: EWMA-3, EWMA-5, drift-3, drift-10, AR(1), “medio paso”
